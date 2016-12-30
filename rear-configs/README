@@ -1,0 +1,17 @@
+The RPM package rear-workshop contains customized local.conf files
+used during the REAR workshop lab exercises.
+It cannot be installed without the 'rear' package as the directoy
+where it stores its lab configuration files is /etc/rear/workshop
+
+We can organize workshop on conferences (free of charge) or at your
+premises with a customized content (consultancy fee).
+
+For more information contact:
+IT3 Consultants bvba
+Gratien D'haese
+Vennestraat 15
+B-2560 Nijlen
+Belgium
+
+e-mail: gratien .  dhaese @ it3 . be
+<remove the spaces>
