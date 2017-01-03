@@ -21,6 +21,10 @@ To give an example, when you have setup the _client_ and _server_ VMs by running
 Before we can start with the content of the workshop you need several things:
 
  - Host system can be Linux, Mac, Windows
+ - Your system supports and is configured to use CPU virtualization. This setting is typically configured through your system's BIOS
+ - At least 15GB of free disk space so that you can download the base images and run a few virtual machine instances
+ - At least 4GB of available memory
+me/gdha/CfP-Cebit-2017.pdf' 
  - A hypervisor like KVM, Oracle VirtualBox, VMware Player or VMware Fusion, Parallels Desktop
  - Install *vagrant* from your distribution or when not present from https://www.vagrantup.com/downloads.html
  - KVM with libvirt needs the *vagrant-libvirt* plugin:  _vagrant plugin install vagrant-libvirt_
@@ -158,4 +162,4 @@ If you need to contact me for setting a workshop on your premises then see the p
 
 Be aware, this workshop uses *centos/7* as GNU/Linux Operating system. If you want to have it for another version or type of GNU/Linux then you have to pay for it (consultancy fee - see above link).
 
-Last updated: 30 December 2016
+Last updated: 3 January 2017

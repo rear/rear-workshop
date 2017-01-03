@@ -179,3 +179,19 @@ mv /etc/yum.repos.d/*.repo /etc/distro.repos.d/
 mv /etc/distro.repos.d/workshop.repo /etc/yum.repos.d/
 echo "Moved all repos from /etc/yum.repos.d/ to /etc/distro.repos.d/ except the workshop.repo"
 
+# Our VMs uses NetworkManager for dhcp of eth0 and eth1 uses a fixed IP address, however, vagrant 1.9.1
+# has a bug that eth1 does not get activated (should get fixed in next release of vagrant)
+# As work-around we will do the following in the mean-time:
+cat > /usr/lib/systemd/system/restart-network.service <<EOF
+[Unit]
+Description=Restart the network (due to bug in vagrant 1.9.1)
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "ip addr show dev eth1 | grep -q DOWN && systemctl restart network.service"
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl enable restart-network.service
+systemctl start restart-network.service
