@@ -197,3 +197,9 @@ WantedBy=multi-user.target
 EOF
 systemctl enable restart-network.service
 systemctl start restart-network.service
+
+if dmidecode | grep -iq virtualbox ; then
+  echo "Removing serial console support as it breaks autorelabel on VirtualBox"
+  sed -i -e 's/ console=[^ ]\+\?//g; s/quiet/vga=791 quiet/' /etc/default/grub
+  grub2-mkconfig -o /boot/grub2/grub.cfg
+fi
