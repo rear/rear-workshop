@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 echo "Provisioning centos/7"
 
@@ -35,39 +35,34 @@ fi
 # Install software that is required to bootstrap the rest of the workshop
 # do an update of the base system first
 echo "Running yum update..."
-yum update -y
+yum --disableplugin=fastestmirror update -y
 
 # httpd,createrepo,wget
 # epel-release will install Epel repository
-packages=( httpd createrepo wget epel-release )
-for pkg in ${packages[@]}
-do
-    rpm -q $pkg >/dev/null
-    if [[ $? -eq 1 ]] ; then
-        echo "Installing $pkg RPM package via yum"
-        yum install -y $pkg
-    fi
-done
+echo "Installing base RPMs via yum"
+yum --disableplugin=fastestmirror install -y httpd createrepo wget epel-release
 
 # Define bareos and rear repo defintions
-wget -O /etc/yum.repos.d/bareos.repo http://download.bareos.org/bareos/release/latest/CentOS_7/bareos.repo
-# it is the purpose to use the stable version during the workshop
-#wget -O /etc/yum.repos.d/Archiving:Backup:Rear.repo http://download.opensuse.org/repositories/Archiving:/Backup:/Rear/CentOS_7/Archiving:Backup:Rear.repo
-# however, as we are still adding features we prefer to have the snapshot version for now
-wget -O /etc/yum.repos.d/Archiving:Backup:Rear:Snapshot.repo http://download.opensuse.org/repositories/Archiving:/Backup:/Rear:/Snapshot/CentOS_7/Archiving:Backup:Rear:Snapshot.repo
-wget -O /etc/yum.repos.d/home:gdha.repo http://download.opensuse.org/repositories/home:/gdha/CentOS_7/home:gdha.repo
+yum-config-manager \
+  --add http://download.bareos.org/bareos/release/latest/CentOS_7/bareos.repo \
+  --add http://download.opensuse.org/repositories/Archiving:/Backup:/Rear/CentOS_7/Archiving:Backup:Rear.repo \
+  --add http://download.opensuse.org/repositories/home:/gdha/CentOS_7/home:gdha.repo \
+# enable this to use ReaR Snapshot instead of Releases
+#  --add http://download.opensuse.org/repositories/Archiving:/Backup:/Rear:/Snapshot/CentOS_7/Archiving:Backup:Rear:Snapshot.repo \
 
+packages=(
+syslinux syslinux-extlinux cifs-utils genisoimage
+net-tools xinetd tftp-server dhcp
+samba samba-client
+bind-utils mtools attr libusal
+bareos bareos-database-postgresql bareos-client-conf bareos-server-conf postgresql-server
+sshfs
+vim-enhanced nano
+rear rear-workshop
+)
 # Download RPMs for workshop
-packages=( syslinux syslinux-extlinux cifs-utils genisoimage net-tools xinetd tftp-server dhcp samba samba-client
-           bind-utils rear postgresql-server bareos bareos-database-postgresql mtools attr libusal bareos-client-conf
-	   bareos-server-conf sshfs rear-workshop )
-
-for pkg in ${packages[@]}
-do
-    echo "Download package $pkg into $RPMDIR"
-    yum install -y --downloadonly --downloaddir=$RPMDIR $pkg
-done
-
+echo "Downloading workshop packages into $RPMDIR"
+yum --disableplugin=fastestmirror install -y --downloadonly --downloaddir=$RPMDIR ${packages[@]}
 
 # create the 'workshop repo' files from the downloaded packages
 echo "Run the createrepo command"
@@ -161,7 +156,7 @@ EOF
 fi
 
 # SElinux settings when Enforce is on (default setting)
-echo "Current mode of SELinux is \"$(getenforce)\"" 
+echo "Current mode of SELinux is \"$(getenforce)\""
 echo "Give httpd rights to read from /srv/http/packages"
 chcon -R -t httpd_sys_content_t /srv/http/packages/
 # However, SELinux and Oracle VirtualBox are not close friends and give restore issues when enabled
@@ -176,16 +171,15 @@ setenforce Permissive
 
 # Disacle kdump service - fails anyway due to lack of swap
 /bin/systemctl stop kdump.service
-/bin/systemctl disbale kdump.service
+/bin/systemctl disable kdump.service
 
 # add the domain name to the /etc/idmapd.conf file (for NFSv4)
 sed -i -e 's,^#Domain =.*,Domain = box,' /etc/idmapd.conf
 
-# move most repos to /etc/distro.repos.d (F25 proposed scheme) to avoid internet traffic during workshop
-[[ ! -d /etc/distro.repos.d ]] && mkdir -m 755 -p /etc/distro.repos.d
-mv /etc/yum.repos.d/*.repo /etc/distro.repos.d/
-mv /etc/distro.repos.d/workshop.repo /etc/yum.repos.d/
-echo "Moved all repos from /etc/yum.repos.d/ to /etc/distro.repos.d/ except the workshop.repo"
+# disable external repos to avoid internet usage during workshop
+yum-config-manager --disable \* | grep -E '(\[|enable)'
+yum-config-manager --enable workshop | grep -E '(\[|enable)'
+echo "Disabled all yum repos except the workshop.repo"
 
 # Our VMs uses NetworkManager for dhcp of eth0 and eth1 uses a fixed IP address, however, vagrant 1.9.1
 # has a bug that eth1 does not get activated (should get fixed in next release of vagrant)
@@ -196,10 +190,16 @@ Description=Restart the network (due to bug in vagrant 1.9.1)
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c "ip addr show dev eth1 | grep -q DOWN && systemctl restart network.service"
+ExecStart=/bin/sh -c "ip addr show dev eth1 | grep -q DOWN && systemctl restart network.service || :"
 
 [Install]
 WantedBy=multi-user.target
 EOF
 systemctl enable restart-network.service
 systemctl start restart-network.service
+
+if dmidecode | grep -iq virtualbox ; then
+  echo "Removing serial console support as it breaks autorelabel on VirtualBox"
+  sed -i -e 's/ console=[^ ]\+\?//g; s/quiet/vga=791 quiet/' /etc/default/grub
+  grub2-mkconfig -o /boot/grub2/grub.cfg
+fi

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 # nodeconfig-centos7.sh script
 # goto the / directory (to avoid errors like - could not change directory to "/home/vagrant"
 cd /
@@ -9,10 +9,10 @@ client*)
 #######
 echo "Running client only commands:"
 echo "Installing bareos-filedaemon and bconsole"
-yum install -y bareos-filedaemon bareos-bconsole
+yum --disableplugin=fastestmirror install -y bareos-filedaemon bareos-bconsole
 
 # installing bareos specific config files
-#yum install -y bareos-client-conf # fails see issue #1
+#yum --disableplugin=fastestmirror install -y bareos-client-conf # fails see issue #1
 rpm -i --replacefiles $( ls /srv/http/packages/workshop/bareos-client-conf-*.rpm )
 
 # check if eth1 is UP
@@ -28,7 +28,7 @@ systemctl start bareos-fd.service
 # end of client specific code
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-server*) 
+server*)
 #######
 echo "Running server only commands:"
 # /export/nfs is used to store NFS backups
@@ -52,7 +52,7 @@ showmount -e
 
 # install and configure postgres
 echo "Installing and configuring postgresql"
-yum install -y  postgresql-server
+yum --disableplugin=fastestmirror install -y  postgresql-server
 # initialize the db
 /bin/postgresql-setup initdb
 # start postgres
@@ -61,7 +61,7 @@ systemctl start postgresql.service
 
 # install bareos RPMs
 echo "Installing bareos server components"
-yum install -y  bareos bareos-database-postgresql
+yum --disableplugin=fastestmirror install -y  bareos bareos-database-postgresql
 
 # installing bareos specific configuration files
 #yum install -y bareos-server-conf  # fails see issue #1
@@ -91,10 +91,10 @@ systemctl start bareos-fd.service
 #service bareos-fd start
 
 # install samba server + basic config
-yum install -y samba samba-client 
-systemctl start smb nmb 
-systemctl enable smb nmb 
-setsebool -P samba_enable_home_dirs on 
+yum --disableplugin=fastestmirror install -y samba samba-client
+systemctl start smb nmb
+systemctl enable smb nmb
+setsebool -P samba_enable_home_dirs on
 restorecon -R /home/vagrant
 # adding user vagrant into smb passwd file with passwd vagrant
 printf "vagrant\nvagrant\n" | smbpasswd -s -a vagrant
