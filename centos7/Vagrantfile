@@ -1,5 +1,9 @@
-# -*- mode: ruby -*-
-# vi: set ft=ruby :
+# first run:
+#
+# vagrant plugin install vagrant-vbguest
+#
+# then vagrant up
+#
 
 nodes = [
    { :hostname => 'client', :ip => '192.168.33.10', :box => 'centos/7', :ram => 1024 },
@@ -34,6 +38,15 @@ Vagrant.configure(2) do |config|
   # end of nodes.each do |node|
   end
 
+  # server should
+  # * expose isos dir from host
+  # * build and host the RPMs
+  config.vm.define "server" do |nodeconfig|
+    nodeconfig.vm.synced_folder "isos/", "/isos", owner: "root", group: "root"
+    nodeconfig.vm.synced_folder "../src", "/src"
+    nodeconfig.vm.provision :shell, path: "provision-centos7-server.sh", run: "always"
+  end
+
   config.vm.define "recover", autostart: false do |recover|
     recover.vm.box = "clink15/pxe"
     recover.vm.boot_timeout = 3600
@@ -58,7 +71,7 @@ Vagrant.configure(2) do |config|
       # According URL https://github.com/mitchellh/vagrant/issues/8105 "IDE Controller" might be "IDE" only
       recover_prov.customize ["storageattach", :id, "--storagectl", "IDE",
                               "--port", "0", "--device", "1", "--type", "dvddrive",
-                              "--medium", "/export/isos/client/rear-client.iso"]
+                              "--medium", "isos/client/rear-client.iso"]
       recover_prov.customize ["modifyvm", :id, "--boot1", "DVD", "--boot2", "disk",
                               "--boot3", "none", "--boot4", "none"]
       # end of |recover_prov|
@@ -68,3 +81,6 @@ Vagrant.configure(2) do |config|
 
 # end of Vagrant.configure
 end
+
+# -*- mode: ruby -*-
+# vi: set ft=ruby

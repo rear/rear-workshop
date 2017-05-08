@@ -1,9 +1,9 @@
 %define		rpmrelease %{nil}
 
 Name:		rear-workshop
-Version:	1.1
+Version:	%{_version}
 Release:	1%{?dist}
-Summary:	Rear configuration files	
+Summary:	Rear configuration files
 
 Group:		Applications/File
 License:	GPLv3

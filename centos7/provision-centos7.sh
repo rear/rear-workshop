@@ -35,18 +35,77 @@ fi
 # Install software that is required to bootstrap the rest of the workshop
 # do an update of the base system first
 echo "Running yum update..."
-yum --disableplugin=fastestmirror update -y
+#yum --disableplugin=fastestmirror update -y
 
 # httpd,createrepo,wget
 # epel-release will install Epel repository
 echo "Installing base RPMs via yum"
 yum --disableplugin=fastestmirror install -y httpd createrepo wget epel-release
 
+if [[ -d /src ]] ; then
+  pushd /src
+  for d in * ; do
+    pushd d
+    make
+    mv *.rpm $RPMDIR
+    popd
+  done
+  popd
+fi
+
+if [[ ! -f $RPMDIR/workshop.repo ]] ; then
+  echo "Create the yum repo for workshop"
+  cat > $RPMDIR/workshop.repo <<EOF
+  [workshop]
+  name=Rear workshop
+  baseurl=http://server/packages/workshop
+  enabled=1
+  gpgcheck=0
+
+EOF
+fi
+
+
+
+# Configure /etc/httpd/conf.d/packages.conf
+if [[ ! -f /etc/httpd/conf.d/packages.conf ]] ; then
+    cat >/etc/httpd/conf.d/packages.conf <<EOF
+Alias /packages /srv/http/packages
+
+<Directory /srv/http/packages>
+  Options Indexes FollowSymlinks
+  AllowOverride All
+  # See http://stackoverflow.com/questions/18392741/apache2-ah01630-client-denied-by-server-configuration
+  #Order allow,deny
+  #Allow from all
+  Require all granted
+</Directory>
+# prevent hitting VirtualBox/sendfile bug
+EnableSendfile Off
+EOF
+fi
+
+# SElinux settings when Enforce is on (default setting)
+echo "Current mode of SELinux is \"$(getenforce)\""
+echo "Give httpd rights to read from /srv/http/packages"
+chcon -R -t httpd_sys_content_t /srv/http/packages/
+# However, SELinux and Oracle VirtualBox are not close friends and give restore issues when enabled
+# Therefore, for the sake of the workshop we disable it
+echo "Force SELinux in Permissive mode"
+setenforce Permissive
+
+
+# Restart httpd so it knows about $RPMDIR location (/etc/httpd/conf.d/packages.conf)
+#service httpd restart
+/bin/systemctl restart  httpd.service
+/bin/systemctl enable   httpd.service
+
 # Define bareos and rear repo defintions
 yum-config-manager \
   --add http://download.bareos.org/bareos/release/latest/CentOS_7/bareos.repo \
-  --add http://download.opensuse.org/repositories/Archiving:/Backup:/Rear/CentOS_7/Archiving:Backup:Rear.repo \
-  --add http://download.opensuse.org/repositories/home:/gdha/CentOS_7/home:gdha.repo \
+  --add http://download.opensuse.org/repositories/Archiving:/Backup:/Rear/CentOS_7/Archiving:Backup:Rear.repo
+
+#  --add http://download.opensuse.org/repositories/home:/gdha/CentOS_7/home:gdha.repo \
 # enable this to use ReaR Snapshot instead of Releases
 #  --add http://download.opensuse.org/repositories/Archiving:/Backup:/Rear:/Snapshot/CentOS_7/Archiving:Backup:Rear:Snapshot.repo \
 
@@ -55,10 +114,11 @@ syslinux syslinux-extlinux cifs-utils genisoimage
 net-tools xinetd tftp-server dhcp
 samba samba-client
 bind-utils mtools attr libusal
-bareos bareos-database-postgresql bareos-client-conf bareos-server-conf postgresql-server
+bareos bareos-database-postgresql postgresql-server
 sshfs
+rpm-build
 vim-enhanced nano
-rear rear-workshop
+rear
 )
 # Download RPMs for workshop
 echo "Downloading workshop packages into $RPMDIR"
@@ -68,17 +128,7 @@ yum --disableplugin=fastestmirror install -y --downloadonly --downloaddir=$RPMDI
 echo "Run the createrepo command"
 createrepo $RPMDIR
 
-if [[ ! -f /etc/yum.repos.d/workshop.repo ]] ; then
-   echo "Create the yum repo for workshop"
-   cat > /etc/yum.repos.d/workshop.repo <<EOF
-[workshop]
-name=Rear workshop
-baseurl=http://localhost/packages/workshop
-enabled=1
-gpgcheck=0
-
-EOF
-fi
+yum-config-manager --add http://server/packages/workshop/workshop.repo
 
 echo "Adding user vagrant and some security related stuff"
 # Users, groups, passwords and sudoers.
@@ -119,7 +169,6 @@ ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6NF8iallvQVp22WDkTkyrtvp9eWW6A8YVr+kz4TjGYe7
 EOF
 chmod 600 ~vagrant/.ssh/authorized_keys
 
-
 # Disable firewall and switch SELinux to permissive mode.
 #chkconfig iptables off
 #chkconfig ip6tables off
@@ -139,35 +188,7 @@ rm -f /etc/udev/rules.d/*persistent-net.rules
 rm -f /etc/udev/rules.d/*-net.rules
 rm -fr /var/lib/dhclient/*
 
-# Configure /etc/httpd/conf.d/packages.conf
-if [[ ! -f /etc/httpd/conf.d/packages.conf ]] ; then
-    cat >/etc/httpd/conf.d/packages.conf <<EOF
-Alias /packages /srv/http/packages
 
-<Directory /srv/http/packages>
-  Options Indexes FollowSymlinks
-  AllowOverride All
-  # See http://stackoverflow.com/questions/18392741/apache2-ah01630-client-denied-by-server-configuration
-  #Order allow,deny
-  #Allow from all
-  Require all granted
-</Directory>
-EOF
-fi
-
-# SElinux settings when Enforce is on (default setting)
-echo "Current mode of SELinux is \"$(getenforce)\""
-echo "Give httpd rights to read from /srv/http/packages"
-chcon -R -t httpd_sys_content_t /srv/http/packages/
-# However, SELinux and Oracle VirtualBox are not close friends and give restore issues when enabled
-# Therefore, for the sake of the workshop we disable it
-echo "Force SELinux in Permissive mode"
-setenforce Permissive
-
-# Restart httpd so it knows about $RPMDIR location (/etc/httpd/conf.d/packages.conf)
-#service httpd restart
-/bin/systemctl restart  httpd.service
-/bin/systemctl enable   httpd.service
 
 # Disacle kdump service - fails anyway due to lack of swap
 /bin/systemctl stop kdump.service

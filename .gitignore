@@ -1,2 +1,5 @@
 .vagrant
 *.tar.gz
+*.rpm
+build
+/centos7/isos/
