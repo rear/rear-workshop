@@ -1,41 +1,23 @@
-# first run:
-#
-# vagrant plugin install vagrant-vbguest
+# workaround for vagrant-share error: vagrant plugin install vagrant-share --plugin-version 1.1.8 (from https://github.com/mitchellh/vagrant/issues/8519)
 #
 # then vagrant up
 #
 
 nodes = [
-   { :hostname => 'client', :ip => '192.168.33.10', :box => 'centos/7', :ram => 1024 },
-   { :hostname => 'server', :ip => '192.168.33.15', :box => 'centos/7', :ram => 1024 }
+  { :hostname => 'server', :ip => '192.168.33.15', :box => 'bento/centos-7.3', :ram => 1024 }, # has VB guest additions
+  { :hostname => 'client', :ip => '192.168.33.10', :box => 'centos/7', :ram => 1024 }, # is configured for net.ifnames=0
 ]
 
 Vagrant.configure(2) do |config|
-  # The most common configuration options are documented and commented below.
-  # For a complete reference, please see the online documentation at
-  # https://docs.vagrantup.com.
-
   nodes.each do |node|
     config.vm.define node[:hostname] do |nodeconfig|
-      nodeconfig.vm.box = "centos/7"
+      nodeconfig.vm.box = node[:box]
       nodeconfig.vm.hostname = node[:hostname] + ".box"
       nodeconfig.vm.network :private_network, ip: node[:ip]
-
-      memory = node[:ram] ? node[:ram] : 256;
-      nodeconfig.vm.provider :virtualbox do |vb|
-        #
-      end
-
-      nodeconfig.vm.synced_folder ".", "/home/vagrant/sync", disabled: true
+      nodeconfig.ssh.insert_key = false
+      nodeconfig.vm.synced_folder ".", "/vagrant", disabled: true
       nodeconfig.vm.provision :shell, path: "provision-centos7.sh"
-
-      # specific provision script for one server
-      nodeconfig.vm.provision :shell, path: "nodeconfig-centos7.sh"
-    # end of config.vm.define node
     end
-
-
-  # end of nodes.each do |node|
   end
 
   # server should
@@ -47,17 +29,19 @@ Vagrant.configure(2) do |config|
     nodeconfig.vm.provision :shell, path: "provision-centos7-server.sh", run: "always"
   end
 
+  config.vm.define "client" do |nodeconfig|
+    nodeconfig.vm.provision :shell, path: "provision-centos7-client.sh", run: "always"
+  end
+
   config.vm.define "recover", autostart: false do |recover|
     recover.vm.box = "clink15/pxe"
     recover.vm.boot_timeout = 3600
     recover.ssh.insert_key = false
-
-    #recover.vm.network "public_network"
     # Vagrant wants an IP, but ReaR will configure it
     recover.vm.network :private_network, ip: "192.168.33.10", auto_config: false
     # Folder sync doesn't work in rescue image
     recover.vm.synced_folder ".", "/vagrant", disabled: true
-    recover.ssh.username = "root"
+    recover.ssh.username = "root" # we added the vagrant insecure key to root in the client
 
     recover.vm.provider :virtualbox do |recover_prov|
       recover_prov.name = "recover"
@@ -74,12 +58,8 @@ Vagrant.configure(2) do |config|
                               "--medium", "isos/client/rear-client.iso"]
       recover_prov.customize ["modifyvm", :id, "--boot1", "DVD", "--boot2", "disk",
                               "--boot3", "none", "--boot4", "none"]
-      # end of |recover_prov|
       end
-    # end of |recover|
     end
-
-# end of Vagrant.configure
 end
 
 # -*- mode: ruby -*-

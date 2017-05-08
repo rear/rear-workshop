@@ -43,7 +43,4 @@ cp -v  README %{buildroot}/etc/rear/workshop/
 
 
 %changelog
-* Mon Jan 02 2017 Gratien D'haese ( gratien.dhaese at gmail.com ) 1.1-1
-- exports became export
-* Wed Jul 06 2016 Gratien D'haese ( gratien.dhaese at gmail.com ) 1.0-1
-- Initial package
+

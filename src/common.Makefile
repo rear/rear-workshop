@@ -11,15 +11,16 @@ $(name).tar.gz:
 	mkdir -p build
 	tar zcf build/$(name).tar.gz \
 	--exclude=Makefile \
+	--exclude=build \
 	--transform='s,^\.,$(name)-$(version),S' .
 
 rpm: $(specfile)
 	mkdir -p build
-	test -l build/noarch || { rm -Rf build/noarch ; ln -svf .. build/noarch ; }
+	test -L build/noarch || { rm -Rf build/noarch ; ln -svf .. build/noarch ; }
 	rpmbuild -v -tb --clean --nodeps \
 		--define="_topdir $(CURDIR)/build" --define="_rpmdir %{_topdir}" \
-		--define="_version $(version)" \
+		--define="_version $(version)" --define="debug_package %{nil}" \
 		build/$(name).tar.gz
 
 clean:
-	-rm -Rf build
+	-rm -Rf build *.rpm
