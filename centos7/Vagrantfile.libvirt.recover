@@ -60,9 +60,9 @@ Vagrant.configure(2) do |config|
       recover_prov.boot 'network'
       # end of |recover_prov|
       end
-      
-    # end of |recover| 
+
+    # end of |recover|
     end
-  
+
 # end of Vagrant.configure
 end
