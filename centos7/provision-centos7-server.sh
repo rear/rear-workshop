@@ -41,10 +41,11 @@ bareos bareos-database-postgresql postgresql-server
 fuse-sshfs rsync
 rpm-build
 vim-enhanced perl nano
+alpine lftp vsftpd
 rear
 )
 
-yum --downloadonly --downloaddir $RPMDIR/ -y install ${packages[@]}
+yumdownloader --destdir $RPMDIR/ --resolve -y ${packages[@]}
 
 # install web server to export local repo dir
 # TODO use NFS instead
