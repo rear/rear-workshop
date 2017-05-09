@@ -1,36 +1,58 @@
-#!/bin/bash -x
-# nodeconfig-centos7.sh script
-# goto the / directory (to avoid errors like - could not change directory to "/home/vagrant"
+#!/bin/bash -ex
 cd /
 
-case $(hostname) in
+yum -y install yum-plugin-local
+yum -y install yum-utils rpm-build epel-release
 
-client*)
-#######
-echo "Running client only commands:"
-echo "Installing bareos-filedaemon and bconsole"
-yum --disableplugin=fastestmirror install -y bareos-filedaemon bareos-bconsole
+sed -i -e 's/.*gpgcheck=.*/gpgcheck=0/; s/.*metadata_expire=.*/metadata_expire=1/; s/.*cost=.*/cost=500/' \
+  /etc/yum.repos.d/_local.repo
+RPMDIR=/var/lib/yum/plugins/local/
 
-# installing bareos specific config files
-#yum --disableplugin=fastestmirror install -y bareos-client-conf # fails see issue #1
-rpm -i --replacefiles $( ls /srv/http/packages/workshop/bareos-client-conf-*.rpm )
+pushd /src
+for d in *-* ; do
+  pushd $d
+  make clean
+  make
+  ls -l
+  cp -v *.rpm $RPMDIR
+  popd
+done
+popd
 
-# check if eth1 is UP
-# Why? See issue https://github.com/mitchellh/vagrant/issues/8115
-# Will probably be fixed in vagrant 1.9.2
-# Currently, when we start the vm (without provisioning) the eth1 is still DOWN
-ip addr show dev eth1 | grep -q DOWN && systemctl restart network.service
+# Define bareos and rear repo defintions
+yum-config-manager \
+  --add http://download.bareos.org/bareos/release/latest/CentOS_7/bareos.repo \
+  --add http://download.opensuse.org/repositories/Archiving:/Backup:/Rear/CentOS_7/Archiving:Backup:Rear.repo
 
-echo "Enabling and Starting bareos-fd daemon process"
-systemctl enable bareos-fd.service
-systemctl start bareos-fd.service
-;;
-# end of client specific code
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Snapshots
+#  --add http://download.opensuse.org/repositories/Archiving:/Backup:/Rear:/Snapshot/CentOS_7/Archiving:Backup:Rear:Snapshot.repo
 
-server*)
-#######
-echo "Running server only commands:"
+# Releases
+#  --add http://download.opensuse.org/repositories/Archiving:/Backup:/Rear/CentOS_7/Archiving:Backup:Rear.repo
+
+# fetch all the packages we need from the internet and put them into our local repo dir
+packages=(
+httpd createrepo wget curl
+syslinux syslinux-extlinux genisoimage
+net-tools xinetd tftp-server dhcp
+samba samba-client cifs-utils
+bind-utils mtools attr libusal
+bareos bareos-database-postgresql postgresql-server
+fuse-sshfs rsync
+rpm-build
+vim-enhanced perl nano
+rear
+)
+
+yum --downloadonly --downloaddir $RPMDIR/ -y install ${packages[@]}
+
+# install web server to export local repo dir
+# TODO use NFS instead
+yum -y install \ # httpd wget curl \
+  nano vim-enhanced \
+  postgresql-server bareos bareos-database-postgresql bareos-server-conf \
+  samba samba-client
+
 # /export/nfs is used to store NFS backups
 [[ ! -d /export/nfs ]] && mkdir -m 755 -p /export/nfs
 # /export/archives is used to store sshfs or rsync backups
@@ -38,6 +60,7 @@ echo "Running server only commands:"
 
 cat > /etc/exports <<EOF
 /export/nfs 192.168.0.0/16(rw,no_root_squash)
+$RPMDIR 192.168.0.0/16(ro,no_root_squash)
 EOF
 
 # check if eth1 is UP
@@ -52,7 +75,6 @@ showmount -e
 
 # install and configure postgres
 echo "Installing and configuring postgresql"
-yum --disableplugin=fastestmirror install -y  postgresql-server
 # initialize the db
 /bin/postgresql-setup initdb
 # start postgres
@@ -61,12 +83,6 @@ systemctl start postgresql.service
 
 # install bareos RPMs
 echo "Installing bareos server components"
-yum --disableplugin=fastestmirror install -y  bareos bareos-database-postgresql
-
-# installing bareos specific configuration files
-#yum install -y bareos-server-conf  # fails see issue #1
-rpm -i --replacefiles $( ls /srv/http/packages/workshop/bareos-server-conf-*.rpm )
-
 # before doing the initialization of bareos tables make /etc/bareos readable for postgres user
 chmod 755 /etc/bareos
 chmod 644 /etc/bareos/*.conf
@@ -86,12 +102,8 @@ systemctl start bareos-dir.service
 systemctl start bareos-sd.service
 systemctl start bareos-fd.service
 
-#service bareos-dir start
-#service bareos-sd start
-#service bareos-fd start
-
 # install samba server + basic config
-yum --disableplugin=fastestmirror install -y samba samba-client
+yum install -y samba samba-client
 systemctl start smb nmb
 systemctl enable smb nmb
 setsebool -P samba_enable_home_dirs on
@@ -101,11 +113,3 @@ printf "vagrant\nvagrant\n" | smbpasswd -s -a vagrant
 # access share as "mount -t cifs  //server/homes /mnt -o username=vagrant"
 # use "testparm -s" to view details of samba cinfig on system "server"
 
-;;
-# end of server specfic code
-
-*) echo "Hum, you should not see this message (check script $0 on system $(hostname))"
-;;
-
-esac
-exit 0
