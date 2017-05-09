@@ -3,10 +3,10 @@
 #%define		topdir ~/rpmbuild
 #%define		debug_package %{nil}
 
-Name:		bareos-server-conf	
-Version:	1.0
+Name:		bareos-server-conf
+Version:	%{_version}
 Release:	1%{?dist}
-Summary:	Bareos server configuration files	
+Summary:	Bareos server configuration files
 
 Group:		Applications/File
 License:	GPLv3
@@ -15,7 +15,8 @@ Source0:	https://build.opensuse.org/package/show/home:gdha/bareos-server-conf/ba
 BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-XXXXXX)
 
 #BuildRequires:
-Requires:	bareos-dir
+Requires:	bareos-dir, bareos-bconsole
+BuildArch:	noarch
 
 %description
 Bareos server configuration files used during the workshop of rear DR exercise
@@ -28,11 +29,9 @@ with Bareos and rear
 %build
 
 %install
-%{__rm} -rf %{buildroot}
+%{__rm} -rf %{buildroot} %{name}.spec
 mkdir -vp %{buildroot}/etc/bareos
-# copy the config files
 cp -rv * %{buildroot}/etc/bareos/
-rm -f %{buildroot}/etc/bareos/%{name}.spec
 
 
 %clean
@@ -40,9 +39,11 @@ rm -f %{buildroot}/etc/bareos/%{name}.spec
 
 %files
 %defattr(-, bareos, bareos, 0755)
-/etc/bareos/
+/etc/bareos/*.conf*
+/etc/bareos/*/*.conf
 
-
+%post
+cp -v /etc/bareos/bconsole.conf.install /etc/bareos/bconsole.conf
+systemctl restart bareos-fd
 %changelog
-* Mon May 30 2016 Gratien D'haese ( gratien.dhaese at gmail.com ) 1.0-1
-- Initial package
+
