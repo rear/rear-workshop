@@ -153,11 +153,78 @@ Observed especially with vagrant 1.9.4, see https://github.com/mitchellh/vagrant
 vagrant plugin install vagrant-share --plugin-version 1.1.8
 ```
 
+## `vagrant up client` fails with network error
+
+<details><summary>
+Observed when **recover** VM is still running. Click for details.
+</summary>
+
+```
+$ vagrant up client
+Bringing machine 'client' up with 'virtualbox' provider...
+==> client: Importing base box 'centos/7'...
+==> client: Matching MAC address for NAT networking...
+==> client: Checking if box 'centos/7' is up to date...
+==> client: Setting the name of the VM: centos7_client_1494411878038_54569
+==> client: Fixed port collision for 22 => 2222. Now on port 2200.
+==> client: Clearing any previously set network interfaces...
+==> client: Preparing network interfaces based on configuration...
+    client: Adapter 1: nat
+    client: Adapter 2: hostonly
+==> client: Forwarding ports...
+    client: 22 (guest) => 2200 (host) (adapter 1)
+==> client: Booting VM...
+==> client: Waiting for machine to boot. This may take a few minutes...
+    client: SSH address: 127.0.0.1:2200
+    client: SSH username: vagrant
+    client: SSH auth method: private key
+==> client: Machine booted and ready!
+==> client: Checking for guest additions in VM...
+    client: No guest additions were detected on the base box for this VM! Guest
+    client: additions are required for forwarded ports, shared folders, host only
+    client: networking, and more. If SSH fails on this machine, please install
+    client: the guest additions and repackage the box to continue.
+    client:
+    client: This is not an error message; everything may continue to work properly,
+    client: in which case you may ignore this message.
+==> client: Setting hostname...
+==> client: Configuring and enabling network interfaces...
+The following SSH command responded with a non-zero exit status.
+Vagrant assumes that this means the command failed!
+
+# Down the interface before munging the config file. This might
+# fail if the interface is not actually set up yet so ignore
+# errors.
+/sbin/ifdown 'eth1'
+# Move new config into place
+mv -f '/tmp/vagrant-network-entry-eth1-1494411902-0' '/etc/sysconfig/network-scripts/ifcfg-eth1'
+# attempt to force network manager to reload configurations
+nmcli c reload || true
+
+# Restart network
+service network restart
+
+
+Stdout from the command:
+
+Restarting network (via systemctl):  [FAILED]
+
+
+Stderr from the command:
+
+usage: ifdown <configuration>
+Job for network.service failed because the control process exited with error code. See "systemctl status network.service" and "journalctl -xe" for details.
+
+```
+</details>
+
+To solve simply kill the recover VM with `vagrant destroy recover -f`
+
 ## Windows 10 with cygwin may exit with rsync error
 
 When you get to see an error like the following:
 
-<pre>
+```
 => client: Rsyncing folder: /home/grati/rear-workshop/centos7/ => /vagrant
 There was an error when attempting to rsync a synced folder.
 Please inspect the error message below for more info.
@@ -172,7 +239,7 @@ mux_client_request_session: read from master failed: Connection reset by peer
 Failed to connect to new control master
 rsync: connection unexpectedly closed (0 bytes received so far) [sender]
 rsync error: error in rsync protocol data stream (code 12) at io.c(226) [sender=3.1.2]
-</pre>
+```
 
 Then go check and follow the advise mentioned in issue https://github.com/mitchellh/vagrant/issues/6702 and restart as *vagrant up --provision*
 
