@@ -40,7 +40,8 @@ bind-utils mtools attr libusal
 bareos bareos-database-postgresql postgresql-server
 fuse-sshfs rsync
 rpm-build
-vim-enhanced perl nano
+vim-enhanced nano
+perl perl-Carp perl-Encode perl-Exporter perl-File-Path perl-File-Temp perl-Filter perl-Getopt-Long perl-HTTP-Tiny perl-PathTools perl-Pod-Escapes perl-Pod-Perldoc perl-Pod-Simple perl-Pod-Usage perl-Scalar-List-Utils perl-Socket perl-Storable perl-Text-ParseWords perl-Time-HiRes perl-Time-Local perl-constant perl-libs perl-macros perl-parent perl-podlators perl-threads perl-threads-shared
 alpine lftp vsftpd
 rear
 )
