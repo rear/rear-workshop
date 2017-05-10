@@ -3,3 +3,4 @@
 *.rpm
 build
 /centos7/isos/
+/centos7/rear

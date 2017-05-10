@@ -12,6 +12,7 @@ Vagrant.configure(2) do |config|
   nodes.each do |node|
     config.vm.define node[:hostname] do |nodeconfig|
       nodeconfig.vm.box = node[:box]
+      nodeconfig.vm.provider "virtualbox"
       nodeconfig.vm.hostname = node[:hostname] + ".box"
       nodeconfig.vm.network :private_network, ip: node[:ip]
       nodeconfig.ssh.insert_key = false
