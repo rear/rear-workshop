@@ -53,7 +53,7 @@ yumdownloader --destdir $RPMDIR/ --resolve -y ${packages[@]}
 yum -y install \ # httpd wget curl \
   nano vim-enhanced \
   postgresql-server bareos bareos-database-postgresql bareos-server-conf \
-  samba samba-client
+  rsync samba samba-client
 
 # /export/nfs is used to store NFS backups
 [[ ! -d /export/nfs ]] && mkdir -m 755 -p /export/nfs
